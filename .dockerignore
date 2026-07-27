@@ -1,0 +1,6 @@
+.git
+.github
+build
+*.log
+README.md
+tests

@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="An interactive GNU Guile lab for Bloom filter saturation, false positives, verification load, scalable layers, and rotating generations."
+    >
+    <title>Bloom Filter Saturation Lab · telemetry.sh</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="https://telemetry.sh" aria-label="telemetry.sh home">
+        <span class="brand-mark">t<span>/</span></span>
+        <span>telemetry.sh</span>
+      </a>
+      <div class="header-label">Bloom filter saturation lab</div>
+      <a
+        class="source-link"
+        href="https://github.com/telemetry-sh/bloom-filter-saturation-lab"
+      >source ↗</a>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow">
+            <span>GNU Guile / Scheme</span>
+            <span>probabilistic data structures</span>
+          </div>
+          <h1>PROBABLY PRESENT.<br><em>DEFINITELY WRONG.</em></h1>
+          <p class="hero-lede">
+            Bloom filters never return false negatives—but a saturated filter can
+            turn “maybe present” into a flood of dropped valid events or
+            authoritative reads. The bitset stays the same size. The meaning of
+            its answer does not.
+          </p>
+          <div class="hero-actions">
+            <a href="#experiment" class="primary-action">Run the workload</a>
+            <span>seeded · deterministic · analytical</span>
+          </div>
+        </div>
+
+        <div class="filter-terminal" aria-label="Selected filter state">
+          <div class="terminal-topline">
+            <span>membership.filter / live</span>
+            <span class="live-dot">sampling</span>
+          </div>
+          <div class="terminal-readout">
+            <span>estimated fpp</span>
+            <strong id="hero-fpp">—</strong>
+          </div>
+          <div id="bit-lattice" class="bit-lattice" aria-hidden="true"></div>
+          <div class="terminal-meta">
+            <div><span>fill</span><strong id="hero-fill">—</strong></div>
+            <div><span>lost valid</span><strong id="hero-lost">—</strong></div>
+            <div><span>authority</span><strong id="hero-authority">—</strong></div>
+          </div>
+          <div class="terminal-command">
+            <span>&gt;</span>
+            <code id="hero-command">check("evt_9f2") → maybe-present</code>
+          </div>
+        </div>
+      </section>
+
+      <section id="experiment" class="experiment-shell">
+        <aside class="control-panel">
+          <div class="section-kicker">01 / workload</div>
+          <h2>Stress the bitset</h2>
+          <p>Change the cardinality pressure and replay the same candidates through every policy.</p>
+
+          <form id="controls">
+            <label>
+              <span>Candidate checks <output data-for="candidates_per_second"></output></span>
+              <input name="candidates_per_second" type="range" min="100" max="100000" step="100" value="8000">
+            </label>
+            <label>
+              <span>New-key share <output data-for="new_key_percent"></output></span>
+              <input name="new_key_percent" type="range" min="10" max="99" step="1" value="82">
+            </label>
+            <label>
+              <span>Expected items <output data-for="expected_items"></output></span>
+              <input name="expected_items" type="range" min="10000" max="2000000" step="10000" value="250000">
+            </label>
+            <label>
+              <span>Bits / expected item <output data-for="bits_per_item"></output></span>
+              <input name="bits_per_item" type="range" min="2" max="24" step="1" value="8">
+            </label>
+            <label>
+              <span>Hash functions <output data-for="hash_functions"></output></span>
+              <input name="hash_functions" type="range" min="1" max="12" step="1" value="5">
+            </label>
+            <label>
+              <span>Run time <output data-for="run_seconds"></output></span>
+              <input name="run_seconds" type="range" min="20" max="300" step="10" value="120">
+            </label>
+            <label>
+              <span>Rotation window <output data-for="rotate_window_seconds"></output></span>
+              <input name="rotate_window_seconds" type="range" min="10" max="120" step="5" value="30">
+            </label>
+            <label>
+              <span>Layer threshold <output data-for="layer_threshold_percent"></output></span>
+              <input name="layer_threshold_percent" type="range" min="40" max="90" step="1" value="70">
+            </label>
+            <label>
+              <span>Backend p99 <output data-for="backend_p99_ms"></output></span>
+              <input name="backend_p99_ms" type="range" min="1" max="200" step="1" value="14">
+            </label>
+            <label>
+              <span>Seed <output data-for="seed"></output></span>
+              <input name="seed" type="range" min="1" max="99999" step="1" value="28411">
+            </label>
+            <button type="reset">Reset defaults</button>
+          </form>
+        </aside>
+
+        <div class="results-panel">
+          <div class="results-heading">
+            <div>
+              <div class="section-kicker">02 / policies</div>
+              <h2>Same traffic. Four meanings of “maybe.”</h2>
+            </div>
+            <div id="request-state" class="request-state">running model…</div>
+          </div>
+
+          <div id="summary-strip" class="summary-strip" aria-live="polite"></div>
+          <div id="strategy-cards" class="strategy-cards"></div>
+
+          <section class="chart-panel">
+            <div class="panel-heading">
+              <div>
+                <div class="section-kicker">03 / error curve</div>
+                <h3>False-positive probability over time</h3>
+              </div>
+              <div id="chart-legend" class="chart-legend"></div>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="curve-chart"></canvas>
+            </div>
+            <div class="chart-note">
+              Log scale · the dashed line marks a 1% error guardrail. Formula:
+              <code>(1 − e<sup>−kn/m</sup>)<sup>k</sup></code>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="truth-section">
+        <div class="truth-copy">
+          <div class="section-kicker">04 / semantics</div>
+          <h2>One answer is a proof.<br>The other is a hypothesis.</h2>
+          <p>
+            A Bloom filter’s definitely-absent result is authoritative. Its
+            maybe-present result needs context: accept probabilistic loss, verify
+            against a source of truth, grow the structure, or constrain membership
+            to an expiry window.
+          </p>
+        </div>
+        <div class="truth-table">
+          <div class="truth-row truth-head">
+            <span>filter says</span><span>what it proves</span><span>safe action</span>
+          </div>
+          <div class="truth-row">
+            <strong>definitely absent</strong>
+            <span>the key is not represented</span>
+            <span class="safe">accept / insert</span>
+          </div>
+          <div class="truth-row">
+            <strong>maybe present</strong>
+            <span>all selected bits happen to be set</span>
+            <span class="warn">verify or accept risk</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="trace-section">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">05 / evidence</div>
+            <h2>Membership decision trace</h2>
+          </div>
+          <div class="trace-policy">selected: <strong id="trace-policy">—</strong></div>
+        </div>
+        <div class="trace-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>time</th>
+                <th>layer / gen</th>
+                <th>fill</th>
+                <th>estimated fpp</th>
+                <th>decision</th>
+                <th>authority</th>
+                <th>outcome</th>
+              </tr>
+            </thead>
+            <tbody id="trace-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="telemetry-section">
+        <div class="telemetry-intro">
+          <div class="section-kicker">06 / telemetry recipe</div>
+          <h2>Instrument the probability,<br>then observe the consequence.</h2>
+          <p>
+            A stable byte count is not a health signal. Track fill, cardinality,
+            estimated and observed error, and the business decision made after a
+            maybe-present response.
+          </p>
+          <a href="https://telemetry.sh">Explore telemetry.sh ↗</a>
+        </div>
+        <div class="signal-grid">
+          <article><code>filter.fill_ratio</code><p>How close the bitset is to losing selectivity.</p></article>
+          <article><code>filter.estimated_fpp</code><p>The mathematical error budget implied by m, n, and k.</p></article>
+          <article><code>filter.observed_false_positives</code><p>Sampled disagreements with the authoritative store.</p></article>
+          <article><code>filter.layer_count</code><p>Growth and query work hidden behind a scalable filter.</p></article>
+          <article><code>filter.generation</code><p>Which time window supplied the maybe-present result.</p></article>
+          <article><code>membership.authority</code><p>Whether the decision came from probability or truth.</p></article>
+          <article><code>valid_events_dropped</code><p>The correctness cost of treating maybe as yes.</p></article>
+          <article><code>backend.verification_ms</code><p>The latency and load paid to recover certainty.</p></article>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Bloom filter saturation lab</span>
+      <span>GNU Guile · no application dependencies</span>
+      <a href="https://telemetry.sh">telemetry.sh ↗</a>
+    </footer>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

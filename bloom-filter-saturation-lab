@@ -1,0 +1,8 @@
+#!/usr/bin/env -S guile --no-auto-compile
+!#
+
+(add-to-load-path (dirname (car (command-line))))
+
+(use-modules (lab server))
+
+(main (command-line))
