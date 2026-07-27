@@ -16,7 +16,7 @@ jobs:
       - name: Install GNU Guile
         run: |
           sudo apt-get update
-          sudo apt-get install -y guile-3.0
+          sudo apt-get install -y guile-3.0 guile-3.0-dev
       - name: Compile and test
         run: make check
 
